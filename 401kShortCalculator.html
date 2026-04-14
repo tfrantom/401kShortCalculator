@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>401k Loan — Trajectory Simulator</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0f14;--bg2:#13161f;--bg3:#191d29;--bg4:#1e2232;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#dde1ee;--text2:#7d8494;--text3:#3d4457;
+  --accent:#5b8df6;--green:#3ecf8e;--red:#f0605f;--amber:#f5a623;--purple:#a78bfa;--teal:#2dd4bf;
+  --mono:'JetBrains Mono','Fira Code','Cascadia Code',monospace;
+  --sans:'DM Sans','Inter',system-ui,sans-serif;
+  --r:8px;--rl:13px;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;padding:2rem 1rem 5rem;line-height:1.6}
+h1{font-size:clamp(1.3rem,3vw,1.85rem);font-weight:600;letter-spacing:-0.03em;margin-bottom:0.2rem}
+h2{font-size:0.82rem;font-weight:500;color:var(--text2);margin:1.6rem 0 0.7rem;padding-bottom:5px;border-bottom:0.5px solid var(--border);letter-spacing:.04em;text-transform:uppercase}
+.subtitle{font-size:0.8rem;color:var(--text2);margin-bottom:2rem;max-width:700px}
+.container{max-width:1160px;margin:0 auto}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.g6{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+@media(max-width:740px){.g2,.g3,.g4,.g6{grid-template-columns:1fr}}
+@media(max-width:1000px){.g6{grid-template-columns:repeat(3,1fr)}}
+.panel{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--rl);padding:1.1rem 1.35rem;margin-bottom:14px}
+.ptitle{font-size:0.64rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:0.85rem;padding-bottom:0.4rem;border-bottom:0.5px solid var(--border)}
+.sr{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.sl{font-size:0.77rem;color:var(--text2);width:215px;flex-shrink:0;line-height:1.3}
+.sr input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:3px;background:var(--bg4);border-radius:2px;outline:none;cursor:pointer}
+.sr input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid var(--bg2);transition:transform .1s}
+.sr input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.25)}
+.sv{font-family:var(--mono);font-size:0.77rem;font-weight:500;color:var(--text);width:84px;text-align:right;flex-shrink:0}
+.sel-row{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.sel-row select{flex:1;background:var(--bg4);border:0.5px solid var(--border2);color:var(--text);font-family:var(--sans);font-size:0.78rem;padding:5px 8px;border-radius:var(--r);outline:none;cursor:pointer}
+.metric{background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--r);padding:10px 13px}
+.mlabel{font-size:0.62rem;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em}
+.mval{font-family:var(--mono);font-size:0.97rem;font-weight:500}
+.green{color:var(--green)}.red{color:var(--red)}.blue{color:var(--accent)}.amber{color:var(--amber)}.purple{color:var(--purple)}.teal{color:var(--teal)}.muted{color:var(--text2)}
+.verdict{border-radius:var(--r);padding:10px 15px;font-size:0.8rem;border:0.5px solid;margin-bottom:14px;font-family:var(--mono);line-height:1.9}
+.verdict.win{border-color:rgba(62,207,142,.22);background:rgba(62,207,142,.045);color:var(--green)}
+.verdict.lose{border-color:rgba(240,96,95,.22);background:rgba(240,96,95,.045);color:var(--red)}
+.chart-wrap{position:relative;width:100%}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:10px;font-size:0.71rem;font-family:var(--mono);color:var(--text2)}
+.leg-dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:middle}
+.note{font-size:0.72rem;color:var(--text3);font-family:var(--mono);margin-bottom:10px;line-height:1.65;padding:8px 12px;background:var(--bg3);border-radius:var(--r);border-left:2px solid var(--border2)}
+/* test console */
+#tc-wrap{margin-top:2rem;border:0.5px solid var(--border2);border-radius:var(--rl);overflow:hidden}
+#tc-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--bg2);cursor:pointer;user-select:none;border-bottom:0.5px solid var(--border)}
+#tc-header:hover{background:var(--bg3)}
+.tc-title{font-family:var(--mono);font-size:0.78rem;color:var(--text2);display:flex;align-items:center;gap:10px}
+#tc-badge{font-size:0.65rem;padding:2px 8px;border-radius:20px;font-weight:600}
+.badge-pass{background:rgba(62,207,142,.15);color:var(--green)}
+.badge-fail{background:rgba(240,96,95,.15);color:var(--red)}
+.badge-run{background:rgba(91,141,246,.15);color:var(--accent)}
+#tc-run-btn{font-family:var(--mono);font-size:0.72rem;padding:4px 12px;border-radius:20px;border:0.5px solid var(--border2);background:transparent;color:var(--accent);cursor:pointer;transition:background .15s}
+#tc-run-btn:hover{background:var(--bg4)}
+#tc-body{background:var(--bg);padding:10px 0;max-height:520px;overflow-y:auto;display:none}
+#tc-body.open{display:block}
+.tl{display:flex;align-items:baseline;gap:10px;padding:2px 16px;font-family:var(--mono);font-size:0.72rem;line-height:1.7}
+.tl:hover{background:rgba(255,255,255,.02)}
+.ti{font-size:0.7rem;flex-shrink:0;width:14px}
+.tn{color:var(--text2);flex:1}
+.td{color:var(--text3);font-size:0.67rem;max-width:520px}
+.tp .ti{color:var(--green)}.tp .tn{color:var(--text)}
+.tf .ti{color:var(--red)}.tf .tn{color:var(--red)}.tf .td{color:var(--amber)}
+.tg{padding:8px 16px 3px;font-family:var(--mono);font-size:0.63rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);border-top:0.5px solid var(--border);margin-top:4px}
+.tg:first-child{border-top:none;margin-top:0}
+#tc-footer{padding:7px 16px;font-family:var(--mono);font-size:0.7rem;color:var(--text3);border-top:0.5px solid var(--border);background:var(--bg2);display:none}
+#tc-footer.open{display:block}
+details{margin-top:1.5rem}
+summary{cursor:pointer;font-size:0.77rem;color:var(--accent);font-family:var(--mono);user-select:none;padding:6px 0}
+summary:hover{opacity:.8}
+pre{background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--r);padding:1.1rem;overflow-x:auto;font-family:var(--mono);font-size:0.73rem;line-height:1.8;color:#8fa3c0;margin-top:6px;tab-size:2}
+.kw{color:#c792ea}.fn{color:#82aaff}.cmt{color:#3a4a5a;font-style:italic}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>401k Loan — Trajectory Simulator</h1>
+<p class="subtitle">Compares two full account trajectories month-by-month: loan strategy vs. staying put and contributing normally. Loan principal repayments buy back shares at each month's price — that's the mechanism. Interest is the only true cash cost.</p>
+
+<h2>Loan &amp; Account</h2>
+<div class="g2">
+  <div class="panel">
+    <div class="ptitle">Loan basics</div>
+    <div class="sr"><span class="sl">Principal / loan amount ($)</span><input type="range" id="P" min="1000" max="50000" step="500" value="10000"><span class="sv" id="P-o"></span></div>
+    <div class="sr"><span class="sl">APR (%)</span><input type="range" id="APR" min="4" max="15" step="0.25" value="8.5"><span class="sv" id="APR-o"></span></div>
+    <div class="sr"><span class="sl">Loan term (months)</span><input type="range" id="N" min="12" max="60" step="6" value="60"><span class="sv" id="N-o"></span></div>
+    <div class="sr"><span class="sl">Min payments before lump sum (k)</span><input type="range" id="K" min="1" max="59" step="1" value="6"><span class="sv" id="K-o"></span></div>
+  </div>
+  <div class="panel">
+    <div class="ptitle">Account &amp; contributions</div>
+    <div class="sr"><span class="sl">Starting balance B₀ ($)</span><input type="range" id="B0" min="5000" max="500000" step="5000" value="75000"><span class="sv" id="B0-o"></span></div>
+    <div class="sr"><span class="sl">Normal monthly contribution C ($)</span><input type="range" id="C" min="0" max="3000" step="50" value="500"><span class="sv" id="C-o"></span></div>
+    <div class="sr"><span class="sl">Contribution during repayment C_loan ($)</span><input type="range" id="CL" min="0" max="3000" step="50" value="150"><span class="sv" id="CL-o"></span></div>
+    <div class="sr"><span class="sl">Share price at disbursement p₀ ($)</span><input type="range" id="P0" min="10" max="500" step="5" value="100"><span class="sv" id="P0-o"></span></div>
+  </div>
+</div>
+
+<h2>Market Scenario &amp; Tax</h2>
+<div class="g2">
+  <div class="panel">
+    <div class="ptitle">Price path</div>
+    <div class="sel-row">
+      <span class="sl" style="font-size:.77rem;color:var(--text2)">Path shape</span>
+      <select id="PATH" onchange="onPathChange()">
+        <option value="instant">Instant drop at lump-sum day</option>
+        <option value="linear" selected>Linear decline over k months</option>
+        <option value="front">Front-loaded (drops hard early, then flat)</option>
+        <option value="back">Back-loaded (slow grind, drops at end)</option>
+        <option value="vshape">V-shape (drops to bottom, partial recovery)</option>
+      </select>
+    </div>
+    <div class="sr"><span class="sl">Total drop at payoff day (%)</span><input type="range" id="DROP" min="0" max="70" step="1" value="20"><span class="sv" id="DROP-o"></span></div>
+    <div class="sr" id="row-vbot"><span class="sl">V-shape — bottom depth (%)</span><input type="range" id="VBOT" min="5" max="80" step="1" value="40"><span class="sv" id="VBOT-o"></span></div>
+    <div class="sr" id="row-vbotm"><span class="sl">V-shape — bottom at month</span><input type="range" id="VBOTM" min="1" max="59" step="1" value="3"><span class="sv" id="VBOTM-o"></span></div>
+  </div>
+  <div class="panel">
+    <div class="ptitle">Tax model &amp; default risk</div>
+    <div class="sr"><span class="sl">Marginal income tax rate t (%)</span><input type="range" id="T" min="10" max="37" step="1" value="22"><span class="sv" id="T-o"></span></div>
+    <div class="sr"><span class="sl">Retirement withdrawal rate t_w (%)</span><input type="range" id="TW" min="10" max="37" step="1" value="22"><span class="sv" id="TW-o"></span></div>
+    <div class="sr"><span class="sl">Years to retirement W</span><input type="range" id="W" min="1" max="40" step="1" value="20"><span class="sv" id="W-o"></span></div>
+    <div class="sr"><span class="sl">Discount rate (%)</span><input type="range" id="D" min="1" max="10" step="0.5" value="3"><span class="sv" id="D-o"></span></div>
+    <div class="sr"><span class="sl">Default probability (%)</span><input type="range" id="DEFP" min="0" max="30" step="1" value="5"><span class="sv" id="DEFP-o"></span></div>
+    <div class="sr"><span class="sl">Post-buyback market return (%)</span><input type="range" id="GR" min="0" max="15" step="0.5" value="7"><span class="sv" id="GR-o"></span></div>
+    <div class="sr"><span class="sl">Early withdrawal penalty (%)</span><input type="range" id="PEN" min="0" max="15" step="1" value="10"><span class="sv" id="PEN-o"></span></div>
+  </div>
+</div>
+
+<h2>Results</h2>
+<div class="verdict" id="verdict"></div>
+<div class="note" id="path-note"></div>
+<div class="g6" id="metrics" style="margin-bottom:14px"></div>
+
+<h2>Charts</h2>
+<div class="g2">
+  <div class="panel">
+    <div class="ptitle">Account value over k months — loan vs. baseline</div>
+    <div class="legend">
+      <span><span class="leg-dot" style="background:#3ecf8e"></span>loan strategy</span>
+      <span><span class="leg-dot" style="background:#5b8df6"></span>baseline (no loan)</span>
+    </div>
+    <div class="chart-wrap" style="height:230px"><canvas id="chart-traj" role="img" aria-label="Account value trajectories for loan strategy vs baseline"></canvas></div>
+  </div>
+  <div class="panel">
+    <div class="ptitle">Share price path over k months</div>
+    <div class="legend">
+      <span><span class="leg-dot" style="background:#f5a623"></span>share price</span>
+      <span><span class="leg-dot" style="background:#3d4457"></span>p₀ reference</span>
+    </div>
+    <div class="chart-wrap" style="height:230px"><canvas id="chart-price" role="img" aria-label="Share price path over the loan repayment period"></canvas></div>
+  </div>
+</div>
+<div class="g2">
+  <div class="panel">
+    <div class="ptitle">ΔV (loan − baseline, after tax) vs. drop % — at current k &amp; path</div>
+    <div class="legend">
+      <span><span class="leg-dot" style="background:#3ecf8e"></span>ΔV</span>
+      <span><span class="leg-dot" style="background:#3d4457"></span>break-even</span>
+      <span><span class="leg-dot" style="background:#f5a623"></span>current</span>
+    </div>
+    <div class="chart-wrap" style="height:230px"><canvas id="chart-dv" role="img" aria-label="Net advantage of loan strategy across drop percentages"></canvas></div>
+  </div>
+  <div class="panel">
+    <div class="ptitle">Break-even drop % vs. min payments made (k)</div>
+    <div class="legend">
+      <span><span class="leg-dot" style="background:#5b8df6"></span>break-even drop</span>
+      <span><span class="leg-dot" style="background:#f5a623"></span>current k</span>
+    </div>
+    <div class="chart-wrap" style="height:230px"><canvas id="chart-be" role="img" aria-label="Break-even price drop required as number of minimum payments increases"></canvas></div>
+  </div>
+</div>
+
+<div class="panel" id="retire-panel" style="display:none">
+  <div class="ptitle" style="display:flex;align-items:center;justify-content:space-between">
+    <span>Retirement growth — both strategies compounded from payoff day to year W</span>
+    <span style="font-size:0.68rem;color:var(--text3);font-family:var(--mono)">post-buyback market return slider in tax panel</span>
+  </div>
+  <div class="legend">
+    <span><span class="leg-dot" style="background:#3ecf8e"></span>loan strategy</span>
+    <span><span class="leg-dot" style="background:#5b8df6"></span>baseline (no loan)</span>
+    <span><span class="leg-dot" style="background:#3d4457;border:1px dashed #555"></span>payoff day (month k)</span>
+  </div>
+  <div class="chart-wrap" style="height:260px"><canvas id="chart-retire" role="img" aria-label="Both account trajectories compounded from payoff day to retirement"></canvas></div>
+  <div style="margin-top:10px;font-size:0.7rem;font-family:var(--mono);color:var(--text3);line-height:1.7" id="retire-summary"></div>
+</div>
+
+<div style="margin-bottom:14px">
+  <button id="retire-toggle" onclick="toggleRetireChart()" style="font-family:var(--mono);font-size:0.75rem;padding:5px 16px;border-radius:20px;border:0.5px solid var(--border2);background:transparent;color:var(--accent);cursor:pointer;transition:background .15s">
+    show retirement growth chart
+  </button>
+</div>
+
+<details>
+<summary>▸ model notes — how the simulation works</summary>
+<pre><span class="cmt">KEY INSIGHT: The 401k loan lives inside your account.
+Repaying principal = buying shares back at the current market price.
+Interest is the only real cost that leaves the system.
+
+BASELINE each month i:
+  shares   *= (1 + g/12)          appreciation
+  shares   += C / price[i]        contribution buys shares at market
+  tax_saved += C * t              pre-tax contribution saves t per dollar
+
+LOAN STRATEGY each month i:
+  shares   *= (1 + g/12)          appreciation (on reduced share count)
+  shares   += Cl / price[i]       reduced contribution buys shares
+  shares   += principalPortion_i / price[i]   payment buys back shares!
+  tax_saved += Cl * t
+
+At month k (lump-sum day):
+  shares   += Bk / price[k]       lump sum buys remaining shares at bottom price
+
+ΔV_shares = (loanShares - baseShares) * price[k]
+            = the share count difference valued at payoff price
+
+Costs subtracted from ΔV_shares (all paid from income, not shares):
+  interestGrossUp  = totalInterest * t / (1-t)     interest paid w/ after-tax $
+  interestRetireTax = totalInterest * tw / (1+d)^W  taxed again at retirement
+  contribTaxDiff   = (C - Cl) * t * k * PV_factor  baseline got more tax savings
+  defaultCost      = defProb * Bk_mid * (tw + penalty)
+
+deltaV_final = ΔV_shares * (1-tw)/(1+d)^W - interestGrossUp - interestRetireTax
+             - contribTaxDiff - defaultCost</span></pre>
+</details>
+
+<!-- test console -->
+<div id="tc-wrap">
+  <div id="tc-header" onclick="toggleConsole()">
+    <div class="tc-title">
+      <span>▸ test console</span>
+      <span id="tc-badge" class="badge-run">not run</span>
+    </div>
+    <button id="tc-run-btn" onclick="event.stopPropagation();runAllTests()">run tests</button>
+  </div>
+  <div id="tc-body"></div>
+  <div id="tc-footer"></div>
+</div>
+
+</div>
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   LAYER 1 — AMORTISATION PRIMITIVES
+═══════════════════════════════════════════════════════════════════ */
+
+function monthlyPayment(P, apr, N) {
+  const r = apr / 100 / 12;
+  return P * r * Math.pow(1+r, N) / (Math.pow(1+r, N) - 1);
+}
+
+function balanceAfter(P, apr, N, k) {
+  if (k === 0) return P;
+  const r = apr / 100 / 12;
+  const M = monthlyPayment(P, apr, N);
+  return P * Math.pow(1+r, k) - M * (Math.pow(1+r, k) - 1) / r;
+}
+
+function walkBalance(P, apr, N, k) {
+  const r = apr / 100 / 12;
+  const M = monthlyPayment(P, apr, N);
+  let bal = P, totalPaid = 0, principalPaid = 0, interestPaid = 0;
+  for (let i = 1; i <= k; i++) {
+    const intP  = bal * r;
+    const prinP = M - intP;
+    interestPaid  += intP;
+    totalPaid     += M;
+    principalPaid += prinP;
+    bal           -= prinP;
+  }
+  return { bal, totalPaid, principalPaid, interestPaid };
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LAYER 2 — PRICE PATH ENGINE
+   Returns array[k+1]: prices at months 0..k
+═══════════════════════════════════════════════════════════════════ */
+
+function buildPricePath(p0, dropPct, k, shape, vBotFrac, vBotM) {
+  // vBotFrac = v-shape bottom depth as fraction e.g. 0.40
+  // vBotM    = month index of the bottom (integer)
+  const prices = new Array(k + 1);
+  const drop   = dropPct / 100;
+  const pEnd   = p0 * (1 - drop);
+
+  for (let i = 0; i <= k; i++) {
+    if (shape === 'instant') {
+      prices[i] = i < k ? p0 : pEnd;
+
+    } else if (shape === 'linear') {
+      prices[i] = p0 - p0 * drop * (i / k);
+
+    } else if (shape === 'front') {
+      // Exponential decay — largest drops early
+      prices[i] = p0 * Math.pow(1 - drop, i / k);
+
+    } else if (shape === 'back') {
+      // Cubic — slow start, accelerates at end
+      prices[i] = p0 * (1 - drop * Math.pow(i / k, 3));
+
+    } else if (shape === 'vshape') {
+      const pBot = p0 * (1 - vBotFrac);
+      if (vBotM <= 0 || k <= vBotM) {
+        prices[i] = p0 - p0 * drop * (i / k); // fallback linear
+      } else if (i <= vBotM) {
+        prices[i] = p0 + (pBot - p0) * (i / vBotM);
+      } else {
+        prices[i] = pBot + (pEnd - pBot) * ((i - vBotM) / (k - vBotM));
+      }
+    } else {
+      prices[i] = p0;
+    }
+  }
+  return prices;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LAYER 3 — TRAJECTORY SIMULATOR
+
+   The 401k loan lives INSIDE the account. Repaying principal buys
+   shares back at the current month's price. Interest is the only
+   cash cost that leaves the system.
+
+   BASELINE each month:
+     shares grow at gm, C buys more shares at market price
+
+   LOAN STRATEGY each month:
+     shares grow at gm, Cl buys shares, principal portion of M buys shares
+     (interest portion is a real cost, not reflected in shares)
+     At month k: lump-sum Bk buys remaining shares at bottom price
+
+   ΔV_shares = difference in share count × payoff price
+   Costs deducted: interest double-tax, contribution tax gap, default risk
+═══════════════════════════════════════════════════════════════════ */
+
+function simulateTrajectories(p) {
+  const {
+    P, apr, N, k, B0, C, Cl, p0, dropPct,
+    shape, vBot, vBotM, t, tw, W, d, g, defProb, penalty
+  } = p;
+
+  const gm     = g / 12;
+  const r      = apr / 100 / 12;
+  const M      = monthlyPayment(P, apr, N);
+  const prices = buildPricePath(p0, dropPct, k, shape, vBot / 100, vBotM);
+
+  // Starting share counts
+  let baseShares = B0 / p0;
+  let loanShares = (B0 - P) / p0; // P was liquidated to fund the loan
+
+  const baseVals = new Array(k + 1);
+  const loanVals = new Array(k + 1);
+
+  let baseContribTaxBenefit = 0;
+  let loanContribTaxBenefit = 0;
+  let totalInterest = 0;
+  let loanBal = P;
+
+  baseVals[0] = baseShares * p0;
+  loanVals[0] = loanShares * p0;
+
+  for (let i = 1; i <= k; i++) {
+    const px = prices[i];
+
+    // Both accounts: existing shares appreciate
+    baseShares *= (1 + gm);
+    loanShares *= (1 + gm);
+
+    // Contributions buy shares
+    baseShares += C  / px;
+    loanShares += Cl / px;
+    baseContribTaxBenefit += C  * t;
+    loanContribTaxBenefit += Cl * t;
+
+    // Loan payment: split interest (cost) vs principal (buys shares back)
+    const intP  = loanBal * r;
+    const prinP = M - intP;
+    totalInterest += intP;
+    loanBal       -= prinP;
+    loanShares    += prinP / px; // principal repayment buys shares at current price
+
+    baseVals[i] = baseShares * px;
+    loanVals[i] = loanShares * px;
+  }
+
+  // Lump-sum payoff at month k: remaining balance buys shares at bottom price
+  const Bk = Math.max(loanBal, 0);
+  const pk = prices[k];
+  loanShares    += Bk / pk;
+  loanVals[k]   = loanShares * pk;
+
+  // ── Tax accounting ────────────────────────────────────────────────
+
+  // 1. Interest double-tax cost (interest paid with after-tax $, taxed again at retirement)
+  const interestGrossUpCost  = totalInterest * t / (1 - t);
+  const interestRetireTax    = totalInterest * tw / Math.pow(1 + d, W);
+  const totalInterestTaxCost = interestGrossUpCost + interestRetireTax;
+
+  // 2. Contribution tax benefit gap (baseline contributed more pre-tax dollars)
+  const contribTaxDiff = baseContribTaxBenefit - loanContribTaxBenefit;
+
+  // 3. Default risk: expected cost if loan called due (job loss etc.)
+  //    Model: default at mid-point of repayment, outstanding balance taxed + penalised
+  const Bk_mid     = Math.max(balanceAfter(P, apr, N, Math.round(k / 2)), 0);
+  const defaultCost = defProb * Bk_mid * (tw + penalty);
+
+  // ── Decision variable ─────────────────────────────────────────────
+
+  // Apply retirement tax and PV discounting to the share value difference
+  const PV_factor       = (1 - tw) / Math.pow(1 + d, W);
+  const deltaV_shares   = loanVals[k] - baseVals[k];
+  const deltaV_aftertax = deltaV_shares * PV_factor;
+  const contribTaxDiffPV = contribTaxDiff * PV_factor;
+
+  // Final: positive means loan strategy beats doing nothing
+  const deltaV_final = deltaV_aftertax
+                     - totalInterestTaxCost
+                     - contribTaxDiffPV
+                     - defaultCost;
+
+  return {
+    loanVals,
+    baseVals,
+    pricePath: prices,
+    months: Array.from({ length: k + 1 }, (_, i) => i),
+    summary: {
+      M, Bk, pk, totalInterest,
+      baseContribTaxBenefit, loanContribTaxBenefit, contribTaxDiff,
+      interestGrossUpCost, interestRetireTax, totalInterestTaxCost,
+      defaultCost,
+      deltaV_raw: deltaV_shares,
+      deltaV_aftertax,
+      contribTaxDiffPV,
+      deltaV_final,
+      PV_factor,
+      loanFinal: loanVals[k],
+      baseFinal: baseVals[k],
+      win: deltaV_final > 0,
+    }
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LAYER 4 — SOLVERS
+═══════════════════════════════════════════════════════════════════ */
+
+function breakEvenDropTraj(p) {
+  // Binary search on dropPct ∈ [0, 99] for deltaV_final === 0
+  let lo = 0, hi = 99;
+  for (let i = 0; i < 64; i++) {
+    const mid = (lo + hi) / 2;
+    if (simulateTrajectories({ ...p, dropPct: mid }).summary.deltaV_final > 0) hi = mid;
+    else lo = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+function breakEvenCurve(p) {
+  const maxK = Math.min(p.N - 1, 48);
+  const out = [];
+  for (let ki = 1; ki <= maxK; ki++)
+    out.push({ k: ki, beDrop: breakEvenDropTraj({ ...p, k: ki }) });
+  return out;
+}
+
+function deltaVCurve(p) {
+  const out = [];
+  for (let dp = 0; dp <= 70; dp++)
+    out.push({ dropPct: dp, deltaV: simulateTrajectories({ ...p, dropPct: dp }).summary.deltaV_final });
+  return out;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LAYER 5 — POST-BUYBACK RETIREMENT GROWTH
+   Takes the two account values at month k and compounds both forward
+   W years at the post-buyback market rate gr, with normal contributions
+   C resuming on the loan side. Returns month-by-month arrays for charting.
+
+   Both accounts from month k onward:
+     shares grow at gr/12 each month
+     contribution C added each month (loan side resumes full C after payoff)
+   Retirement tax tw applied to final values for display.
+═══════════════════════════════════════════════════════════════════ */
+
+function retirementGrowth(loanAtK, baseAtK, C, gr, tw, W) {
+  // W is in years; simulate W*12 months forward
+  const months  = W * 12;
+  const grm     = gr / 12;
+  const loanArr = new Array(months + 1);
+  const baseArr = new Array(months + 1);
+
+  loanArr[0] = loanAtK;
+  baseArr[0] = baseAtK;
+
+  for (let i = 1; i <= months; i++) {
+    // Both accounts: appreciate + contribution each month
+    loanArr[i] = loanArr[i-1] * (1 + grm) + C;
+    baseArr[i] = baseArr[i-1] * (1 + grm) + C;
+  }
+
+  // After-tax withdrawal values at retirement
+  const loanRetire = loanArr[months] * (1 - tw);
+  const baseRetire = baseArr[months] * (1 - tw);
+
+  return {
+    loanArr,
+    baseArr,
+    months,
+    loanRetire,
+    baseRetire,
+    deltaRetire: loanRetire - baseRetire,   // positive = loan strategy won at retirement
+    labels: Array.from({ length: months + 1 }, (_, i) => {
+      const yr = (i / 12);
+      return Number.isInteger(yr) ? `yr ${yr}` : '';
+    }),
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TEST FRAMEWORK
+═══════════════════════════════════════════════════════════════════ */
+
+const _tests = [];
+let _currentGroup = '';
+function group(name) { _currentGroup = name; }
+function test(label, fn) { _tests.push({ label, group: _currentGroup, fn }); }
+function assert(cond, detail) { if (!cond) throw new Error(detail || 'assertion failed'); }
+function assertNear(actual, expected, tol, detail) {
+  if (!isFinite(actual)) throw new Error(`${detail||''}: non-finite value ${actual}`);
+  const diff = Math.abs(actual - expected);
+  if (diff > tol) throw new Error(
+    `${detail ? detail+': ' : ''}expected ~${expected.toFixed(4)}, got ${actual.toFixed(4)} (Δ=${diff.toFixed(4)}, tol=${tol})`
+  );
+}
+
+function runAllTests() {
+  const body   = document.getElementById('tc-body');
+  const badge  = document.getElementById('tc-badge');
+  const footer = document.getElementById('tc-footer');
+  body.innerHTML = '';
+  body.classList.add('open');
+  footer.classList.add('open');
+  let pass = 0, fail = 0, lastGroup = '';
+  for (const t of _tests) {
+    if (t.group !== lastGroup) {
+      const g = document.createElement('div');
+      g.className = 'tg'; g.textContent = t.group;
+      body.appendChild(g); lastGroup = t.group;
+    }
+    const line = document.createElement('div');
+    let detail = '', passed = false;
+    try { t.fn(); passed = true; pass++; }
+    catch(e) { detail = e.message; fail++; }
+    line.className = 'tl ' + (passed ? 'tp' : 'tf');
+    line.innerHTML = `<span class="ti">${passed?'✓':'✗'}</span><span class="tn">${t.label}</span>${detail?`<span class="td">${detail}</span>`:''}`;
+    body.appendChild(line);
+  }
+  const total = pass + fail;
+  badge.textContent = `${pass}/${total} passed`;
+  badge.className   = fail === 0 ? 'badge-pass' : 'badge-fail';
+  footer.textContent = `${pass} passed  ·  ${fail} failed  ·  ${total} total`;
+}
+
+function toggleConsole() {
+  document.getElementById('tc-body').classList.toggle('open');
+  document.getElementById('tc-footer').classList.toggle('open');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TEST DEFINITIONS
+═══════════════════════════════════════════════════════════════════ */
+
+// Base params for tests
+const TP = {
+  P:10000, apr:8.5, N:60, k:6, B0:75000, C:500, Cl:150,
+  p0:100, dropPct:20, shape:'linear', vBot:40, vBotM:3,
+  t:0.22, tw:0.22, W:20, d:0.03, g:0.07, defProb:0.05, penalty:0.10
+};
+
+// ── Amortisation primitives ──────────────────────────────────────────
+group('amortisation primitives');
+
+test('monthly payment — $10k @ 8.5% / 60mo', () => {
+  assertNear(monthlyPayment(10000, 8.5, 60), 205.17, 0.01);
+});
+test('monthly payment — $25k @ 6% / 36mo', () => {
+  assertNear(monthlyPayment(25000, 6, 36), 760.55, 0.02);
+});
+test('balanceAfter(k=0) === P', () => {
+  assertNear(balanceAfter(10000, 8.5, 60, 0), 10000, 0.001);
+});
+test('balanceAfter(k=N) ≈ 0', () => {
+  assertNear(balanceAfter(10000, 8.5, 60, 60), 0, 0.10);
+});
+test('closed-form matches walk at k=6', () => {
+  assertNear(balanceAfter(10000,8.5,60,6), walkBalance(10000,8.5,60,6).bal, 0.001);
+});
+test('closed-form matches walk at k=30', () => {
+  assertNear(balanceAfter(10000,8.5,60,30), walkBalance(10000,8.5,60,30).bal, 0.001);
+});
+test('balance strictly decreasing each payment', () => {
+  let prev = 10000;
+  for (let i = 1; i <= 12; i++) {
+    const curr = balanceAfter(10000, 8.5, 60, i);
+    assert(curr < prev, `should fall at k=${i}`); prev = curr;
+  }
+});
+test('walkBalance interestPaid + principalPaid = totalPaid', () => {
+  const w = walkBalance(10000, 8.5, 60, 12);
+  assertNear(w.interestPaid + w.principalPaid, w.totalPaid, 0.001);
+});
+
+// ── Price path engine ─────────────────────────────────────────────────
+group('price path engine');
+
+test('all paths: price at month 0 === p0', () => {
+  for (const shape of ['instant','linear','front','back','vshape']) {
+    const px = buildPricePath(100, 20, 6, shape, 0.40, 3);
+    assertNear(px[0], 100, 0.001, `shape=${shape}`);
+  }
+});
+test('all non-vshape paths: price at month k === p0*(1-drop)', () => {
+  for (const shape of ['instant','linear','front','back']) {
+    const px = buildPricePath(100, 25, 6, shape, 0.40, 3);
+    assertNear(px[6], 75, 0.001, `shape=${shape}`);
+  }
+});
+test('instant: flat until final month', () => {
+  const px = buildPricePath(100, 30, 6, 'instant', 0, 0);
+  for (let i = 0; i < 6; i++) assertNear(px[i], 100, 0.001, `instant p[${i}]`);
+  assertNear(px[6], 70, 0.001, 'instant p[k]');
+});
+test('linear: monotonically decreasing', () => {
+  const px = buildPricePath(100, 25, 10, 'linear', 0, 0);
+  for (let i = 1; i <= 10; i++) assert(px[i] < px[i-1], `linear should fall at i=${i}`);
+});
+test('front: first-half drop > second-half drop', () => {
+  const px = buildPricePath(100, 40, 10, 'front', 0, 0);
+  assert(px[0]-px[5] > px[5]-px[10], 'front: bigger drop in first half');
+});
+test('back: second-half drop > first-half drop', () => {
+  const px = buildPricePath(100, 40, 10, 'back', 0, 0);
+  assert(px[5]-px[10] > px[0]-px[5], 'back: bigger drop in second half');
+});
+test('vshape: bottom lower than both start and end', () => {
+  const px = buildPricePath(100, 20, 12, 'vshape', 0.40, 4);
+  assert(px[4] < px[0], 'vshape bottom < start');
+  assert(px[4] < px[12], 'vshape bottom < end');
+});
+test('vshape: bottom depth correct', () => {
+  const px = buildPricePath(100, 20, 12, 'vshape', 0.40, 4);
+  assertNear(px[4], 60, 0.001, 'vshape bottom = p0*(1-0.40)');
+});
+test('vshape: price at k matches dropPct', () => {
+  const px = buildPricePath(100, 20, 12, 'vshape', 0.40, 4);
+  assertNear(px[12], 80, 0.001, 'vshape end price');
+});
+test('no negative prices at any shape at 70% drop', () => {
+  for (const shape of ['instant','linear','front','back','vshape']) {
+    const px = buildPricePath(100, 70, 12, shape, 0.75, 4);
+    for (let i = 0; i <= 12; i++) assert(px[i] >= 0, `${shape} p[${i}] negative`);
+  }
+});
+
+// ── Trajectory simulator — structural ────────────────────────────────
+group('trajectory simulator — structural');
+
+test('month 0: baseVals[0] = B0', () => {
+  assertNear(simulateTrajectories(TP).baseVals[0], TP.B0, 0.01);
+});
+test('month 0: loanVals[0] = B0 - P (shares sold for loan)', () => {
+  assertNear(simulateTrajectories(TP).loanVals[0], TP.B0 - TP.P, 0.01);
+});
+test('baseline grows when prices are flat (0% drop, g>0)', () => {
+  // IMPORTANT: test at flat prices so appreciation isn't masked by price decline
+  const r = simulateTrajectories({ ...TP, dropPct: 0, shape: 'instant' });
+  assert(r.baseVals[TP.k] > r.baseVals[0], 'baseline should grow with flat prices and g>0');
+});
+test('loanVals and baseVals have length k+1', () => {
+  const r = simulateTrajectories(TP);
+  assert(r.loanVals.length === TP.k + 1 && r.baseVals.length === TP.k + 1);
+});
+test('pricePath has length k+1', () => {
+  assert(simulateTrajectories(TP).pricePath.length === TP.k + 1);
+});
+test('0% drop + g=0: loan lags baseline (interest is only cost)', () => {
+  const r = simulateTrajectories({ ...TP, dropPct: 0, g: 0 });
+  assert(r.loanVals[TP.k] < r.baseVals[TP.k], 'loan should lag at 0% drop');
+});
+test('deltaV_final monotonically increases as dropPct increases', () => {
+  let prev = simulateTrajectories({ ...TP, dropPct: 0 }).summary.deltaV_final;
+  for (let dp = 1; dp <= 60; dp++) {
+    const curr = simulateTrajectories({ ...TP, dropPct: dp }).summary.deltaV_final;
+    assert(curr >= prev - 0.001, `deltaV should not fall at dp=${dp}%`);
+    prev = curr;
+  }
+});
+test('Cl = C: contribTaxDiff = 0 (no contribution squeeze)', () => {
+  assertNear(simulateTrajectories({ ...TP, Cl: TP.C }).summary.contribTaxDiff, 0, 0.001);
+});
+test('Cl < C: baseline has higher contribTaxBenefit', () => {
+  const s = simulateTrajectories(TP).summary;
+  assert(s.contribTaxDiff > 0, 'baseline should have more tax benefit when Cl < C');
+});
+test('contribTaxDiff = (C - Cl) * t * k', () => {
+  const s = simulateTrajectories(TP).summary;
+  assertNear(s.contribTaxDiff, (TP.C - TP.Cl) * TP.t * TP.k, 0.01);
+});
+test('defaultCost = 0 when defProb = 0', () => {
+  assertNear(simulateTrajectories({ ...TP, defProb: 0 }).summary.defaultCost, 0, 0.001);
+});
+test('defaultCost increases with defProb', () => {
+  const lo = simulateTrajectories({ ...TP, defProb: 0.02 }).summary.defaultCost;
+  const hi = simulateTrajectories({ ...TP, defProb: 0.20 }).summary.defaultCost;
+  assert(hi > lo, 'defaultCost should rise with defProb');
+});
+test('defaultCost increases with penalty rate', () => {
+  const lo = simulateTrajectories({ ...TP, penalty: 0.00 }).summary.defaultCost;
+  const hi = simulateTrajectories({ ...TP, penalty: 0.15 }).summary.defaultCost;
+  assert(hi > lo, 'defaultCost should rise with penalty');
+});
+test('lump-sum at k adds shares: loanVals[k] updates after Bk/pk', () => {
+  // At 55% instant drop, loanVals[k] should be > loanVals[k-1] / last month
+  // because lump sum adds shares. Test indirectly: loan should win at 55% instant.
+  const r = simulateTrajectories({ ...TP, dropPct: 55, shape: 'instant', g: 0, defProb: 0 });
+  assert(r.summary.win, 'loan should win at 55% instant drop with no OC');
+});
+
+// ── Tax model integrity ───────────────────────────────────────────────
+group('tax model integrity');
+
+test('interestGrossUpCost > 0', () => {
+  assert(simulateTrajectories(TP).summary.interestGrossUpCost > 0);
+});
+test('higher t raises interestGrossUpCost', () => {
+  const lo = simulateTrajectories({ ...TP, t: 0.12 }).summary.interestGrossUpCost;
+  const hi = simulateTrajectories({ ...TP, t: 0.35 }).summary.interestGrossUpCost;
+  assert(hi > lo, 'higher t → higher gross-up');
+});
+test('higher tw raises interestRetireTax', () => {
+  const lo = simulateTrajectories({ ...TP, tw: 0.10 }).summary.interestRetireTax;
+  const hi = simulateTrajectories({ ...TP, tw: 0.35 }).summary.interestRetireTax;
+  assert(hi > lo);
+});
+test('larger W discounts interestRetireTax (PV)', () => {
+  const near = simulateTrajectories({ ...TP, W:  1 }).summary.interestRetireTax;
+  const far  = simulateTrajectories({ ...TP, W: 40 }).summary.interestRetireTax;
+  assert(far < near, 'far retirement → lower PV of tax');
+});
+test('PV_factor = (1-tw)/(1+d)^W', () => {
+  const s = simulateTrajectories(TP).summary;
+  assertNear(s.PV_factor, (1 - TP.tw) / Math.pow(1 + TP.d, TP.W), 0.0001);
+});
+test('totalInterestTaxCost = interestGrossUpCost + interestRetireTax', () => {
+  const s = simulateTrajectories(TP).summary;
+  assertNear(s.totalInterestTaxCost, s.interestGrossUpCost + s.interestRetireTax, 0.001);
+});
+
+// ── Sanity — known-value checks ───────────────────────────────────────
+group('sanity — known-value checks');
+
+test('0% drop + g=0 + no default: loan always loses', () => {
+  const s = simulateTrajectories({ ...TP, dropPct: 0, g: 0, defProb: 0 }).summary;
+  assert(s.deltaV_final < 0, 'must lose at 0% drop with no OC');
+});
+test('55% instant drop + g=0 + no default: loan wins', () => {
+  const s = simulateTrajectories({ ...TP, dropPct: 55, g: 0, defProb: 0, shape: 'instant' }).summary;
+  assert(s.win, `should win; deltaV=${s.deltaV_final.toFixed(2)}`);
+});
+test('B0 very large vs P: loanVals[0] ≈ B0-P', () => {
+  const r = simulateTrajectories({ ...TP, B0: 1000000, P: 1000 });
+  assertNear(r.loanVals[0], 999000, 1);
+});
+test('lower Cl → worse deltaV_final (more contribution tax drag)', () => {
+  const hi = simulateTrajectories({ ...TP, Cl: 400 }).summary.deltaV_final;
+  const lo = simulateTrajectories({ ...TP, Cl:   0 }).summary.deltaV_final;
+  assert(lo < hi, 'lower Cl hurts loan strategy more');
+});
+test('higher B0 scales loanVals[0] and baseVals[0] correctly', () => {
+  const r = simulateTrajectories({ ...TP, B0: 150000 });
+  assertNear(r.baseVals[0], 150000, 0.01);
+  assertNear(r.loanVals[0], 140000, 0.01);
+});
+test('Bk after N-1 payments: Bk*(1+r) === M (balance is discounted final payment)', () => {
+  // After N-1 payments, the remaining balance is M/(1+r), not M.
+  // One more month of interest on Bk brings it to exactly M.
+  const M  = monthlyPayment(10000, 8.5, 60);
+  const Bk = balanceAfter(10000, 8.5, 60, 59);
+  const r  = 8.5 / 100 / 12;
+  assertNear(Bk * (1 + r), M, 0.0001, 'Bk*(1+r) should equal M exactly');
+});
+
+// ── Retirement growth model ───────────────────────────────────────────
+group('retirement growth model');
+
+test('retirementGrowth: output arrays have length W*12 + 1', () => {
+  const rg = retirementGrowth(75000, 80000, 500, 0.07, 0.22, 20);
+  assert(rg.loanArr.length === 241, `expected 241, got ${rg.loanArr.length}`);
+  assert(rg.baseArr.length === 241);
+});
+
+test('retirementGrowth: month 0 values equal inputs', () => {
+  const rg = retirementGrowth(70000, 80000, 500, 0.07, 0.22, 20);
+  assertNear(rg.loanArr[0], 70000, 0.001, 'loanArr[0]');
+  assertNear(rg.baseArr[0], 80000, 0.001, 'baseArr[0]');
+});
+
+test('retirementGrowth: both arrays grow monotonically (gr>0, C>0)', () => {
+  const rg = retirementGrowth(70000, 80000, 500, 0.07, 0.22, 10);
+  for (let i = 1; i < rg.loanArr.length; i++) {
+    assert(rg.loanArr[i] > rg.loanArr[i-1], `loan should grow at i=${i}`);
+    assert(rg.baseArr[i] > rg.baseArr[i-1], `base should grow at i=${i}`);
+  }
+});
+
+test('retirementGrowth: higher starting value stays higher throughout', () => {
+  const rg = retirementGrowth(70000, 80000, 500, 0.07, 0.22, 10);
+  for (let i = 0; i < rg.baseArr.length; i++)
+    assert(rg.baseArr[i] > rg.loanArr[i], `base > loan at month ${i}`);
+});
+
+test('retirementGrowth: deltaRetire = loanRetire - baseRetire', () => {
+  const rg = retirementGrowth(70000, 80000, 500, 0.07, 0.22, 20);
+  assertNear(rg.deltaRetire, rg.loanRetire - rg.baseRetire, 0.01);
+});
+
+test('retirementGrowth: retirement values have tax applied (< pre-tax)', () => {
+  const rg = retirementGrowth(70000, 80000, 500, 0.07, 0.22, 20);
+  const months = 20 * 12;
+  assert(rg.loanRetire < rg.loanArr[months], 'loanRetire should be after-tax (lower)');
+  assert(rg.baseRetire < rg.baseArr[months], 'baseRetire should be after-tax (lower)');
+});
+
+test('retirementGrowth: tw=0 means retire value equals final array value', () => {
+  const rg = retirementGrowth(70000, 80000, 500, 0.07, 0, 10);
+  assertNear(rg.loanRetire, rg.loanArr[10*12], 0.01, 'tw=0 no tax');
+  assertNear(rg.baseRetire, rg.baseArr[10*12], 0.01, 'tw=0 no tax');
+});
+
+test('retirementGrowth: C=0, gr=0 → values stay flat at starting amount', () => {
+  const rg = retirementGrowth(70000, 80000, 0, 0, 0, 5);
+  assertNear(rg.loanArr[5*12], 70000, 0.001, 'flat with no growth or contrib');
+  assertNear(rg.baseArr[5*12], 80000, 0.001, 'flat with no growth or contrib');
+});
+
+test('retirementGrowth: W=0 means arrays have length 1 (just the starting values)', () => {
+  const rg = retirementGrowth(70000, 80000, 500, 0.07, 0.22, 0);
+  assert(rg.loanArr.length === 1, `expected 1, got ${rg.loanArr.length}`);
+});
+
+test('retirementGrowth: delta preserved sign after compounding (loan behind stays behind)', () => {
+  // If loan starts behind at payoff, and same C and gr apply, baseline stays ahead
+  const rg = retirementGrowth(65000, 75000, 500, 0.07, 0.22, 20);
+  assert(rg.deltaRetire < 0, 'loan that starts behind should stay behind at retirement');
+});
+
+test('retirementGrowth: higher gr → larger final values', () => {
+  const low  = retirementGrowth(70000, 80000, 500, 0.04, 0.22, 20);
+  const high = retirementGrowth(70000, 80000, 500, 0.10, 0.22, 20);
+  assert(high.loanRetire > low.loanRetire, 'higher gr → larger retirement balance');
+});
+
+test('retirementGrowth: longer W → larger final values (gr>0)', () => {
+  const short = retirementGrowth(70000, 80000, 500, 0.07, 0.22, 10);
+  const long  = retirementGrowth(70000, 80000, 500, 0.07, 0.22, 30);
+  assert(long.loanRetire > short.loanRetire, 'longer horizon → larger balance');
+});
+
+// ── Break-even solver ─────────────────────────────────────────────────
+group('break-even solver');
+
+test('breakEvenDropTraj: deltaV_final ≈ 0 at returned drop', () => {
+  const beDrop = breakEvenDropTraj(TP);
+  const s = simulateTrajectories({ ...TP, dropPct: beDrop }).summary;
+  assertNear(s.deltaV_final, 0, 1.0, 'deltaV at break-even'); // $1 tol on ~$75k account
+});
+test('break-even drop increases as k increases', () => {
+  const be6  = breakEvenDropTraj({ ...TP, k:  6 });
+  const be12 = breakEvenDropTraj({ ...TP, k: 12 });
+  assert(be12 > be6, `be(k=12)=${be12.toFixed(2)} > be(k=6)=${be6.toFixed(2)}`);
+});
+test('Cl=C (no squeeze) → lower break-even than Cl=0 (full squeeze)', () => {
+  const beNoSqueeze = breakEvenDropTraj({ ...TP, Cl: TP.C });
+  const beSqueeze   = breakEvenDropTraj({ ...TP, Cl: 0   });
+  assert(beNoSqueeze < beSqueeze, `no squeeze: ${beNoSqueeze.toFixed(2)}, full: ${beSqueeze.toFixed(2)}`);
+});
+test('higher default probability → higher break-even drop', () => {
+  const beNoDef = breakEvenDropTraj({ ...TP, defProb: 0    });
+  const beDef   = breakEvenDropTraj({ ...TP, defProb: 0.20 });
+  assert(beDef > beNoDef, `def=${beDef.toFixed(2)} > no-def=${beNoDef.toFixed(2)}`);
+});
+test('deltaVCurve: monotonically non-decreasing', () => {
+  const curve = deltaVCurve(TP);
+  for (let i = 1; i < curve.length; i++)
+    assert(curve[i].deltaV >= curve[i-1].deltaV - 0.001,
+      `not monotone at dp=${curve[i].dropPct}%`);
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   UI
+═══════════════════════════════════════════════════════════════════ */
+
+function sv(id) { return +document.getElementById(id).value; }
+
+function getParams() {
+  return {
+    P:       sv('P'),
+    apr:     sv('APR'),
+    N:       sv('N'),
+    k:       sv('K'),
+    B0:      sv('B0'),
+    C:       sv('C'),
+    Cl:      sv('CL'),
+    p0:      sv('P0'),
+    dropPct: sv('DROP'),
+    shape:   document.getElementById('PATH').value,
+    vBot:    sv('VBOT'),
+    vBotM:   sv('VBOTM'),
+    t:       sv('T')    / 100,
+    tw:      sv('TW')   / 100,
+    W:       sv('W'),
+    d:       sv('D')    / 100,
+    g:       0.07, // long-run expected return — hardcoded, not a slider
+    gr:      sv('GR')   / 100,  // post-buyback market return (slider)
+    defProb: sv('DEFP') / 100,
+    penalty: sv('PEN')  / 100,
+  };
+}
+
+function fmtD(n) {
+  if (!isFinite(n)) return '—';
+  return (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+function fmt(n, dec=1) { return isFinite(n) ? n.toFixed(dec) : '—'; }
+function mc(label, val, cls='') {
+  return `<div class="metric"><div class="mlabel">${label}</div><div class="mval ${cls}">${val}</div></div>`;
+}
+
+const PATH_NOTES = {
+  instant: 'INSTANT DROP — price flat at p₀ until lump-sum day, then falls sharply. Baseline DCA buys at full price throughout — no DCA advantage for either side. Most favourable framing for the loan strategy.',
+  linear:  'LINEAR DECLINE — price falls steadily each month. Baseline DCA benefits from progressively cheaper shares, partially competing with the loan strategy\'s lump-sum re-entry.',
+  front:   'FRONT-LOADED — price crashes early then flattens. Baseline contributions buy heavily discounted shares early on. Often the hardest path for the loan strategy because baseline DCA is very efficient.',
+  back:    'BACK-LOADED — price grinds slowly then drops near payoff day. Baseline buys mostly at high prices. Timing is most favourable for the loan strategy\'s lump-sum mechanism.',
+  vshape:  'V-SHAPE — drops to a bottom mid-period, then partially recovers to payoff price. Baseline DCA buys near the bottom. The deeper the bottom vs. the recovery, the more this helps baseline over loan.',
+};
+
+function onPathChange() {
+  const show = document.getElementById('PATH').value === 'vshape';
+  document.getElementById('row-vbot').style.display  = show ? '' : 'none';
+  document.getElementById('row-vbotm').style.display = show ? '' : 'none';
+  update();
+}
+
+function updateLabels(p) {
+  const s = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  s('P-o',    '$' + p.P.toLocaleString());
+  s('APR-o',  p.apr.toFixed(2) + '%');
+  s('N-o',    p.N + ' mo');
+  s('K-o',    p.k);
+  s('B0-o',   '$' + p.B0.toLocaleString());
+  s('C-o',    '$' + p.C);
+  s('CL-o',   '$' + p.Cl);
+  s('P0-o',   '$' + p.p0);
+  s('DROP-o', p.dropPct + '%');
+  s('VBOT-o', p.vBot + '%');
+  s('VBOTM-o','mo ' + p.vBotM);
+  s('T-o',    (p.t  * 100).toFixed(0) + '%');
+  s('TW-o',   (p.tw * 100).toFixed(0) + '%');
+  s('W-o',    p.W + ' yr');
+  s('D-o',    (p.d  * 100).toFixed(1) + '%');
+  s('GR-o',   (p.gr  * 100).toFixed(1) + '%');
+  s('DEFP-o', (p.defProb  * 100).toFixed(0) + '%');
+  s('PEN-o',  (p.penalty  * 100).toFixed(0) + '%');
+}
+
+function update() {
+  const p = getParams();
+
+  // clamp k to N-1
+  const kEl = document.getElementById('K');
+  kEl.max = p.N - 1;
+  if (p.k >= p.N) { kEl.value = p.N - 1; p.k = p.N - 1; }
+
+  // clamp vBotM to k-1
+  const vEl = document.getElementById('VBOTM');
+  vEl.max = Math.max(1, p.k - 1);
+  if (p.vBotM >= p.k) { vEl.value = Math.max(1, p.k - 1); p.vBotM = +vEl.value; }
+
+  updateLabels(p);
+  document.getElementById('path-note').textContent = PATH_NOTES[p.shape] || '';
+
+  const result = simulateTrajectories(p);
+  const s      = result.summary;
+  const beDrop = breakEvenDropTraj(p);
+
+  // verdict
+  const vEl2 = document.getElementById('verdict');
+  vEl2.className = 'verdict ' + (s.win ? 'win' : 'lose');
+  vEl2.textContent = s.win
+    ? `LOAN STRATEGY WINS  |  ΔV = ${fmtD(s.deltaV_final)} in your favour (after tax & PV).  Break-even needed ${fmt(beDrop)}% drop; you have ${p.dropPct}%.  Interest drag: ${fmtD(s.totalInterestTaxCost)}.  Contrib drag: ${fmtD(s.contribTaxDiffPV)}.  Default cost: ${fmtD(s.defaultCost)}.`
+    : `LOAN STRATEGY LOSES  |  ΔV = ${fmtD(s.deltaV_final)} against you (after tax & PV).  Need ${fmt(beDrop)}% drop to break even; you set ${p.dropPct}%.  Interest drag: ${fmtD(s.totalInterestTaxCost)}.  Contrib drag: ${fmtD(s.contribTaxDiffPV)}.  Default cost: ${fmtD(s.defaultCost)}.`;
+
+  // metrics
+  document.getElementById('metrics').innerHTML = [
+    mc('Monthly payment M',          fmtD(s.M),                      'blue'),
+    mc('Remaining balance B_k',       fmtD(s.Bk),                     'blue'),
+    mc('Loan account at k',           fmtD(s.loanFinal),              s.loanFinal >= s.baseFinal ? 'green' : 'red'),
+    mc('Baseline account at k',       fmtD(s.baseFinal),              'muted'),
+    mc('ΔV shares (raw)',             fmtD(s.deltaV_raw),             s.deltaV_raw >= 0 ? 'green' : 'red'),
+    mc('ΔV after retirement tax/PV',  fmtD(s.deltaV_aftertax),        s.deltaV_aftertax >= 0 ? 'green' : 'red'),
+    mc('Interest tax drag',           fmtD(s.totalInterestTaxCost),   'red'),
+    mc('Contrib tax drag (PV)',        fmtD(s.contribTaxDiffPV),       'red'),
+    mc('Default risk cost',           fmtD(s.defaultCost),            'amber'),
+    mc('ΔV final',                    fmtD(s.deltaV_final),           s.win ? 'green' : 'red'),
+    mc('Break-even drop needed',      fmt(beDrop) + '%',              'amber'),
+    mc('Payoff price p_k',            fmtD(s.pk),                     'muted'),
+  ].join('');
+
+  // Chart 1: trajectories
+  cTraj.data.labels = result.months;
+  cTraj.data.datasets[0].data = result.loanVals.map(v => +v.toFixed(0));
+  cTraj.data.datasets[1].data = result.baseVals.map(v => +v.toFixed(0));
+  cTraj.update();
+
+  // Chart 2: price path
+  cPrice.data.labels = result.months;
+  cPrice.data.datasets[0].data = result.pricePath.map(v => +v.toFixed(2));
+  cPrice.data.datasets[1].data = result.months.map(() => p.p0);
+  cPrice.update();
+
+  // Chart 3: ΔV vs drop%
+  const dvc = deltaVCurve(p);
+  cDV.data.labels = dvc.map(d => d.dropPct);
+  cDV.data.datasets[0].data = dvc.map(d => +d.deltaV.toFixed(0));
+  cDV.data.datasets[1].data = dvc.map(() => 0);
+  cDV.data.datasets[2].data = dvc.map(d => d.dropPct === p.dropPct ? +d.deltaV.toFixed(0) : null);
+  cDV.update();
+
+  // Chart 4: break-even curve
+  const bec = breakEvenCurve(p);
+  cBE.data.labels = bec.map(b => b.k);
+  cBE.data.datasets[0].data = bec.map(b => +b.beDrop.toFixed(2));
+  cBE.data.datasets[1].data = bec.map(b => b.k === p.k ? +b.beDrop.toFixed(2) : null);
+  cBE.update();
+
+  // Chart 5: retirement growth (always computed, only rendered if visible)
+  const rg = retirementGrowth(s.loanFinal, s.baseFinal, p.C, p.gr, p.tw, p.W);
+  window._lastRetireData = { rg, p, s }; // cache for toggle
+  if (document.getElementById('retire-panel').style.display !== 'none') {
+    renderRetireChart(rg, p, s);
+  }
+}
+
+function renderRetireChart(rg, p, s) {
+  // thin labels: only show yearly ticks
+  cRetire.data.labels = rg.labels;
+  cRetire.data.datasets[0].data = rg.loanArr.map(v => +v.toFixed(0));
+  cRetire.data.datasets[1].data = rg.baseArr.map(v => +v.toFixed(0));
+  // vertical marker at month 0 (payoff day) — annotate via a single-point dataset
+  cRetire.data.datasets[2].data = rg.loanArr.map((v, i) => i === 0 ? +v.toFixed(0) : null);
+  cRetire.update();
+
+  const win = rg.deltaRetire > 0;
+  document.getElementById('retire-summary').textContent =
+    `At retirement (${p.W} yr, ${(p.gr*100).toFixed(1)}% post-buyback return):  ` +
+    `loan → ${fmtD(rg.loanRetire)} after tax  |  ` +
+    `baseline → ${fmtD(rg.baseRetire)} after tax  |  ` +
+    `ΔV at retirement: ${fmtD(rg.deltaRetire)} ${win ? '(loan wins)' : '(baseline wins)'}`;
+}
+
+let _retireVisible = false;
+function toggleRetireChart() {
+  _retireVisible = !_retireVisible;
+  const panel = document.getElementById('retire-panel');
+  const btn   = document.getElementById('retire-toggle');
+  panel.style.display = _retireVisible ? '' : 'none';
+  btn.textContent = _retireVisible ? 'hide retirement growth chart' : 'show retirement growth chart';
+  if (_retireVisible && window._lastRetireData) {
+    const { rg, p, s } = window._lastRetireData;
+    renderRetireChart(rg, p, s);
+  }
+}
+
+document.querySelectorAll('input[type=range]').forEach(el => el.addEventListener('input', update));
+document.getElementById('PATH').addEventListener('change', onPathChange);
+// NOTE: onPathChange() and update() are called after Chart.js initialises below
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const SC = {
+  ticks: { color: '#3d4457', font: { size: 10 } },
+  grid:  { color: 'rgba(255,255,255,0.03)' },
+  title: { display: true, color: '#4a5268', font: { size: 10 } },
+};
+const CO = {
+  responsive: true, maintainAspectRatio: false,
+  animation: { duration: 80 },
+  interaction: { mode: 'index', intersect: false },
+  plugins: { legend: { display: false } },
+};
+
+const cTraj = new Chart(document.getElementById('chart-traj'), {
+  type: 'line',
+  data: { labels: [], datasets: [
+    { label:'Loan',     data:[], borderColor:'#3ecf8e', backgroundColor:'rgba(62,207,142,0.06)', borderWidth:2, pointRadius:0, fill:true, tension:0.3 },
+    { label:'Baseline', data:[], borderColor:'#5b8df6', backgroundColor:'rgba(91,141,246,0.06)', borderWidth:2, pointRadius:0, fill:true, tension:0.3 },
+  ]},
+  options: { ...CO,
+    plugins: { ...CO.plugins, tooltip:{ callbacks:{ label: ctx => ctx.dataset.label+': $'+ctx.parsed.y.toLocaleString() } } },
+    scales: {
+      x: { ...SC, title:{ ...SC.title, text:'month' } },
+      y: { ...SC, title:{ ...SC.title, text:'account value ($)' }, ticks:{ ...SC.ticks, callback: v => '$'+(v/1000).toFixed(0)+'k' } },
+    }
+  }
+});
+
+const cPrice = new Chart(document.getElementById('chart-price'), {
+  type: 'line',
+  data: { labels: [], datasets: [
+    { label:'Price', data:[], borderColor:'#f5a623', backgroundColor:'rgba(245,166,35,0.06)', borderWidth:2, pointRadius:0, fill:true, tension:0.3 },
+    { label:'p₀',   data:[], borderColor:'#3d4457', borderWidth:1, borderDash:[4,4], pointRadius:0, fill:false },
+  ]},
+  options: { ...CO,
+    plugins: { ...CO.plugins, tooltip:{ callbacks:{ label: ctx => ctx.dataset.label+': $'+ctx.parsed.y.toFixed(2) } } },
+    scales: {
+      x: { ...SC, title:{ ...SC.title, text:'month' } },
+      y: { ...SC, title:{ ...SC.title, text:'share price ($)' }, ticks:{ ...SC.ticks, callback: v => '$'+v.toFixed(0) } },
+    }
+  }
+});
+
+const cDV = new Chart(document.getElementById('chart-dv'), {
+  type: 'line',
+  data: { labels: [], datasets: [
+    { label:'ΔV ($)', data:[], borderColor:'#3ecf8e', backgroundColor:'rgba(62,207,142,0.06)', borderWidth:2, pointRadius:0, fill:true, tension:0.2 },
+    { label:'Break-even', data:[], borderColor:'#2d3347', borderWidth:1, borderDash:[4,4], pointRadius:0, fill:false },
+    { label:'Current',    data:[], borderColor:'#f5a623', backgroundColor:'#f5a623', pointRadius:6, pointHoverRadius:8, showLine:false },
+  ]},
+  options: { ...CO,
+    plugins: { ...CO.plugins, tooltip:{ callbacks:{ label: ctx => ctx.dataset.label+': $'+ctx.parsed.y.toFixed(0) } } },
+    scales: {
+      x: { ...SC, title:{ ...SC.title, text:'drop at payoff (%)' }, ticks:{ ...SC.ticks, callback: v => v+'%' } },
+      y: { ...SC, title:{ ...SC.title, text:'ΔV loan − baseline ($)' }, ticks:{ ...SC.ticks, callback: v => '$'+v.toFixed(0) } },
+    }
+  }
+});
+
+const cBE = new Chart(document.getElementById('chart-be'), {
+  type: 'line',
+  data: { labels: [], datasets: [
+    { label:'Break-even drop', data:[], borderColor:'#5b8df6', backgroundColor:'rgba(91,141,246,0.06)', borderWidth:2, pointRadius:1.5, fill:true, tension:0.35 },
+    { label:'Current k', data:[], borderColor:'#f5a623', backgroundColor:'#f5a623', pointRadius:6, pointHoverRadius:8, showLine:false },
+  ]},
+  options: { ...CO,
+    plugins: { ...CO.plugins, tooltip:{ callbacks:{ label: ctx => ctx.dataset.label+': '+ctx.parsed.y.toFixed(1)+'%' } } },
+    scales: {
+      x: { ...SC, title:{ ...SC.title, text:'min payments made (k)' }, ticks:{ ...SC.ticks, maxTicksLimit:12 } },
+      y: { ...SC, title:{ ...SC.title, text:'required drop (%)' }, min:0, ticks:{ ...SC.ticks, callback: v => v.toFixed(0)+'%' } },
+    }
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// TODO: post-buyback trajectory model
+//
+// Currently the simulation ends at month k (lump-sum payoff day).
+// A useful extension would be to continue both trajectories forward
+// from month k to retirement (W years), letting both accounts
+// compound at the expected market rate g with normal contributions C
+// resuming on the loan side.
+//
+// This would show:
+//   - Whether the share count advantage from the lump-sum re-entry
+//     compounds meaningfully over the remaining horizon
+//   - The long-run dollar difference at retirement, not just at payoff
+//   - How sensitive the final retirement balance is to W (years left)
+//     vs. the short-term drop % — i.e. does a small edge at k matter
+//     much over 20 years of compounding, or does it wash out?
+//
+// Implementation sketch:
+//   After simulateTrajectories() returns at month k:
+//     V_loan_retire = loanVals[k]  * (1 + g/12)^(W*12) + C * annuity_factor(g, W*12)
+//     V_base_retire = baseVals[k]  * (1 + g/12)^(W*12) + C * annuity_factor(g, W*12)
+//   Since C and the growth factor are the same on both sides, only
+//   the loanVals[k] vs baseVals[k] difference matters — it just gets
+//   scaled by (1+g/12)^(W*12). So ΔV at retirement = ΔV_shares * that factor.
+//   Could plot a 5th chart: both account balances from month 0 → W*12,
+//   with a vertical marker at month k showing where the strategy ended.
+// ═══════════════════════════════════════════════════════════════════
+
+const cRetire = new Chart(document.getElementById('chart-retire'), {
+  type: 'line',
+  data: { labels: [], datasets: [
+    { label:'Loan',     data:[], borderColor:'#3ecf8e', backgroundColor:'rgba(62,207,142,0.06)', borderWidth:2, pointRadius:0, fill:true, tension:0.3 },
+    { label:'Baseline', data:[], borderColor:'#5b8df6', backgroundColor:'rgba(91,141,246,0.06)', borderWidth:2, pointRadius:0, fill:true, tension:0.3 },
+    { label:'Payoff day', data:[], borderColor:'#f5a623', backgroundColor:'#f5a623', pointRadius:7, pointHoverRadius:9, showLine:false },
+  ]},
+  options: { ...CO,
+    plugins: { ...CO.plugins, tooltip:{ callbacks:{ label: ctx => ctx.dataset.label+': $'+ctx.parsed.y.toLocaleString() } } },
+    scales: {
+      x: { ...SC, title:{ ...SC.title, text:'years from payoff day' }, ticks:{ ...SC.ticks, maxTicksLimit:16, callback: (v, i, ticks) => {
+        // only show integer year labels
+        const lbl = cRetire.data.labels[i];
+        return lbl && lbl.startsWith('yr') ? lbl : '';
+      }}},
+      y: { ...SC, title:{ ...SC.title, text:'account value ($)' }, ticks:{ ...SC.ticks, callback: v => '$'+(v/1000).toFixed(0)+'k' } },
+    }
+  }
+});
+
+onPathChange(); // set vshape row visibility before first render
+update();
+runAllTests();
+</script>
+</body>
+</html>
