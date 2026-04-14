@@ -13,6 +13,9 @@ So, what if you take out a loan against your 401k, _with the intention that the 
 ## This calculator/simulation tool was born out of that incredibly stupid idea. 
 This was built in a single night, entirely vibe coded, with minimal testing. No results of using this tool should be used to make financial decisions, **ever**.
 
+## Running
+* download `401kShortCalculator.html` and run it in your browser.
+
 This project may get flushed out further with more robust tests and baseline simulations,  TBD.
 
 ## Potential future ideas:
