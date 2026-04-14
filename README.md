@@ -15,7 +15,7 @@ This was built in a single night, entirely vibe coded, with minimal testing. No 
 
 This project may get flushed out further with more robust tests and baseline simulations,  TBD.
 
-Potential future ideas:
+## Potential future ideas:
 * Be able to give it some real market data and play a simulation across that as the model. Move the buyback date around to see what-if impacts
 * Add in an even dumber idea, "what if you take the money from that loan and _buy_ other stocks with it?". Leveraged trading with these loans could make for some fun graphs
 * Do some robust simulations by "hand" and compare to the tool. It's not been very well tested at this point, and the unit tests were also vibe-coded.
